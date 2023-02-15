@@ -1,11 +1,10 @@
 const TelegramBot = require('node-telegram-bot-api');
 var fs = require ('fs');
-var Buffer =require ('buffer');
 var path = require ('path');
 var schedule = require('node-schedule');
 var moment = require ("moment/moment.js");
 const { token } = require('./auth.json');
-var subbedChannels = require('./subcriptions.json')
+var subbedChannels = require('./subcriptions.json');
 
 const runningdate = moment(Date.now()).format('MM/DD/YYYY');
 
@@ -24,16 +23,9 @@ const orderReccentFiles = (dir) => {
       .sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
   };
 
-// replace the value below with the Telegram token you receive from @BotFather
-// const token = '';
-
-// Create a bot that uses 'polling' to fetch new updates
 const bot = new TelegramBot(token, {polling: true});
 
-// Listen for any kind of message. There are different kinds of
-// messages.
-var subChannels = []
-
+//send curated list on parsing text
 bot.on('message', (msg) => {
     var today = 'item shop';
     if  (msg.text.toString().toLowerCase().indexOf(today) === 0) {
@@ -61,9 +53,10 @@ bot.on('message', (msg) => {
     }
 });
 
+//send curated list on command
 bot.onText(/\/itemshop/, (msg) => {
   const chatId = msg.chat.id;
-
+console.log('sending to' +chatId);
   const furryshoptoday = getMostRecentFile("/home/gamas/FNItemShopGenerator/ItemShopDaily");
   const furryemotestoday = getMostRecentFile("/home/gamas/FNItemShopGenerator/ItemShopEmotes");
   
@@ -84,40 +77,100 @@ bot.onText(/\/itemshop/, (msg) => {
   bot.sendPhoto(chatId, streamEm);
 });
 
+//add to list when added to a channel
 bot.on('my_chat_member', (msg) => {
-const chatId = msg.chat.id;
-console.log(chatId);
-console.log("Channels subbed so far: "+subChannels);
-
+  const cType = msg.chat.type;
+  if (cType == "channel") {
+    const chatId = msg.chat.id;
+    console.log("Channels subbed so far: "+subbedChannels);
+    console.log('Bot added to the channel: ' + chatId);
+    subbedChannels.push(chatId);
+    console.log("Channels after concat: "+subbedChannels);
+    
+    var subs2add = JSON.stringify(subbedChannels);
+    
+    fs.writeFile('subcriptions.json', subs2add, err => {
+    if (err) throw err; });
+    }
+    else {
+      console.log ('type of chat is not channel.')
+    }
 });
 
+// register command
 bot.onText(/\/register/, (msg) => {
   const chatId = msg.chat.id;
-  if (subbedChannels.includes(chatId) == false) {
-    subChannels.push(chatId);
-    console.log("Channels subbed so far: "+subChannels);
+  if (subbedChannels.includes(chatId) == true)  {
+    bot.sendMessage(chatId, "Your channel is already registered.")
+  }
+  else if (subbedChannels.includes(chatId) == false) {
+    console.log("Channels subbed so far: "+subbedChannels);
+    console.log("Channel to add: "+chatId);
   bot.sendMessage(chatId, "Your channel has been registered. You will get daily updates of the item shop at 7:20pm EST.");
 
-  var newSubs = JSON.stringify(subChannels);
-  fs.writeFile('subcriptions.json', newSubs, err => {
+  subbedChannels.push(chatId);
+  console.log("Channels after concat: "+subbedChannels);
+
+  var subs2add = JSON.stringify(subbedChannels);
+
+  fs.writeFile('subcriptions.json', subs2add, err => {
     if (err) throw err;
   });
+}
 
-}
-else {
-  bot.sendMessage(chatId, "Your channel is already registered.")
-}
 });
 
+// deregister command
+bot.onText(/\/deregister/, (msg) => {
+ 
+  const chatId = msg.chat.id;
 
+  if (subbedChannels.includes(chatId) == true)  {
+
+    console.log("Channels subbed so far: "+subbedChannels);
+    console.log("Channel to remove: "+chatId);
+
+    bot.sendMessage(chatId, "Your channel notifications have been turned off");
+
+// identify index of element to remove
+
+  const index2Remove = (element) => element == chatId;
+
+    const removeIndex = subbedChannels.findIndex(index2Remove);
+    console.log("this is the index to remove " + removeIndex);
+
+    delete subbedChannels[removeIndex];
+
+    console.log("this is the array after removal " + subbedChannels);
+
+    subbedChannels.sort();
+    console.log("Array sorted: " + subbedChannels);
+
+    subbedChannels.pop();
+
+    console.log("Channels after removal: "+subbedChannels);
+
+    var subs2add = JSON.stringify(subbedChannels);
+
+    fs.writeFile('subcriptions.json', subs2add, err => {
+    if (err) throw err; });}
+
+  else if (subbedChannels.includes(chatId) == false) {
+   
+    bot.sendMessage(chatId, "Your channel has notifications off.")
+  
+  }
+
+
+});
+
+// Daily message
 schedule.scheduleJob('20 18 * * *', async function(){
     
   subbedChannels.forEach(chatId => {
     
     console.log('[INFO] Running bot on the ' + runningdate);
   
-  //const chatId = msg.chat.id;
-
   const furryshoptoday = getMostRecentFile("/home/gamas/FNItemShopGenerator/ItemShopDaily");
   const furryemotestoday = getMostRecentFile("/home/gamas/FNItemShopGenerator/ItemShopEmotes");
   
