@@ -10,3 +10,5 @@ https://t.me/FurryFortniteBot
 if you are more experienced with node.js and want to contribute to make the bot more efficient and with more features feel free to do a pull request!
 
 Mod - Nawy
+
+If you are versed on github please submit problems on issues, otherwise please dm me on https://twitter.com/furry_fortnite/
